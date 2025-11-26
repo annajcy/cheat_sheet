@@ -1,0 +1,55 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,top=1pt,bottom=2pt,left=1pt,right=1pt,marginparwidth=1pt,headheight=1pt]{geometry}
+
+\input{preamble.tex}
+
+\usepackage{blindtext}
+\usepackage{multicol}
+\usepackage{color}
+\setlength{\columnsep}{0.2cm}
+\setlength{\columnseprule}{1pt}
+\def\columnseprulecolor{\color{blue}}
+
+\usepackage{xpatch}
+\xpatchcmd{\NCC@ignorepar}{%
+\abovedisplayskip\abovedisplayshortskip}
+{%
+\abovedisplayskip\abovedisplayshortskip%
+\belowdisplayskip\belowdisplayshortskip}
+{}{}
+
+\setlength{\parindent}{0in}
+\setlength{\parskip}{0in}
+
+\setlength{\belowdisplayskip}{0pt} \setlength{\belowdisplayshortskip}{0pt}
+\setlength{\abovedisplayskip}{0pt} \setlength{\abovedisplayshortskip}{0pt}
+
+\usepackage{soul}
+\usepackage[dvipsnames]{xcolor}
+
+% For better text align
+\usepackage{ragged2e}
+\usepackage{titlesec}
+\titleformat{\section}{\color{red}\scriptsize\bfseries}{}{0.1em}{}
+\titleformat{\subsection}{\color{blue}\tiny\bfseries\itshape}{}{0.07em}{\underline}
+\titlespacing*{\section}{0pt}{0.5ex}{0.25ex}
+\titlespacing*{\subsection}{0pt}{0.25ex}{0.15ex}
+
+\begin{document}
+\singlespacing
+
+\begin{multicols*}{4}
+
+\tiny
+
+\raggedright
+
+\section{Section1}
+
+\subsection{Subsection}
+
+\textbf{Key Words} 
+
+\end{multicols*}
+
+\end{document}
