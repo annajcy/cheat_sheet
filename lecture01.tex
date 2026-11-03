@@ -1,0 +1,111 @@
+% CEG5206 L01 condensed mathematical cheat-sheet section
+% Requires: amsmath, amssymb, array (standard in LaTeX cheat-sheet projects).
+\section{L01: Algorithms \& Analysis}
+\subsection{Asymptotic bounds \& sums}
+$O(g):f\le Cg$; $\Omega(g):f\ge cg$;
+$\Theta(g):cg\le f\le Cg$ ($0<c\le C$, $n\ge n_0$).
+$\Theta(g)=O(g)\cap\Omega(g)$; bounds $\ne$ best/worst input cases.
+\[
+\begin{array}{@{}c@{}}
+1\prec\log n\prec n\prec n\log n\\
+\prec n^2\prec 2^n\prec n!,\\
+\sum_{i=1}^ni=\frac{n(n+1)}2=\Theta(n^2),\\
+\sum_{i=0}^{h}r^i=\frac{r^{h+1}-1}{r-1}\ (r\ne1),\\
+H_n=\sum_{i=1}^n\frac1i=\Theta(\log n),\\
+\sum_{i=1}^n\log i=\log(n!)=\Theta(n\log n).
+\end{array}
+\]
+\textbf{Loop templates:}
+$\sum_{t=0}^{\lfloor\log_b n\rfloor}b^t=\Theta(n)$ ($b>1$);
+$\sum_{t=0}^{\lfloor\log_b n\rfloor}\lfloor n/b^t\rfloor=\Theta(n)$;
+$\sum_{i=1}^n(\lfloor\log_b i\rfloor+1)=\Theta(n\log n)$.
+\textbf{$\Theta$ proof:} upper by max term; lower from last $\ge n/2$ terms (each $\Omega(\log n)$ for log sums).
+
+\subsection{Correctness \& searching}
+\textbf{Loop invariant:} initialization $\to$ maintenance $\to$ termination; also prove progress/termination.
+\textbf{Linear:} best $\Theta(1)$; worst $\Theta(n)$; successful uniform average comparisons $(n+1)/2$; space $\Theta(1)$.
+\textbf{Binary:} sorted $A$; best $\Theta(1)$, worst/standard average $\Theta(\log n)$; iterative aux. space $\Theta(1)$, recursive (index-only) stack $\Theta(\log n)$.
+\[
+\begin{array}{@{}c@{}}
+m=l+\left\lfloor\frac{r-l}{2}\right\rfloor,\\
+\begin{cases}
+l>r&\Rightarrow\text{return }-1,\\
+A[m]=x&\Rightarrow\text{return }m,\\
+A[m]<x&\Rightarrow l\gets m+1,\\
+A[m]>x&\Rightarrow r\gets m-1.
+\end{cases}
+\end{array}
+\]
+\textbf{Invariant:} if $x$ exists, it remains in $A[l\ldots r]$;
+$l=r$ is one candidate, $l>r$ is empty (do not index).
+
+\subsection{Sorting}
+\begingroup\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.03}
+\begin{tabular}{@{}lcccc@{}}
+\textbf{Algorithm} & \textbf{Best} & \textbf{Worst} & \textbf{Aux.} & \textbf{Stable}\\\hline
+Bubble V4 & $n$ & $n^2$ & $1$ & Y\\
+Insertion & $n$ & $n^2$ & $1$ & Y\\
+Selection & $n^2$ & $n^2$ & $1$ & N\\
+Merge & $n\log n$ & $n\log n$ & $n$ & Y$^*$
+\end{tabular}\endgroup
+\par\emph{Entries are $\Theta(\cdot)$; $^*$merge ties: take left first.}
+\textbf{Invariants:} Bubble: suffix contains $i$ largest (sorted);
+Insertion: processed prefix sorted;
+Selection: prefix contains $i$ smallest (sorted);
+Merge: output prefix sorted after each extraction.
+\[
+\begin{array}{@{}c@{}}
+I=\sum_{i<j}[A_i>A_j],\qquad T_{\rm ins}=\Theta(n+I),\\
+C_{\rm sel}=\frac{n(n-1)}2,\\
+T_{\rm merge}=2T(n/2)+\Theta(n)=\Theta(n\log n).
+\end{array}
+\]
+\textbf{Special:} ordered segments of length $k$: bubble $\Theta(nk)$ worst case, at most $k-1$ whole-array passes (known condition);
+$[2,3,\ldots,n,1]$: bubble $\Theta(n^2)$, insertion $\Theta(n)$.
+Two distinct keys can still give $I=\Theta(n^2)$.
+Selection's nonadjacent swap may break stability; Bubble V4 stops on a no-swap pass.
+Standard merge peak aux. space $\Theta(n)$ (reused buffer); L01 slides list $O(n\log n)$ for a different allocation/accounting convention.
+
+\subsection{Recursion tree \& Master Method}
+For $T(n)=aT(n/b)+f(n)$ ($a\ge1,b>1$), let $p=\log_b a$, $h=\log_b n$ (assume $n=b^h$, $T(1)=\Theta(1)$):
+\[
+\begin{array}{@{}c@{}}
+W_i=a^if(n/b^i),\quad L=a^h=n^p,\\
+T(n)=\sum_{i=0}^{h-1}W_i+\Theta(n^p).
+\end{array}
+\]
+For $f(n)=\Theta(n^c)$: $W_i=\Theta\!\left(n^c(a/b^c)^i\right)$;
+$c<p$: leaves; $c=p$: equal levels; $c>p$: root.
+\textbf{Basic Master} (eventually nonnegative $f$, $\epsilon>0$):
+\[
+\begin{array}{@{}r@{\;}l@{}}
+f=O(n^{p-\epsilon})&\Rightarrow T=\Theta(n^p),\\
+f=\Theta(n^p)&\Rightarrow T=\Theta(n^p\log n),\\
+f=\Omega(n^{p+\epsilon})&\Rightarrow T=\Theta(f(n)).
+\end{array}
+\]
+Case 3 also requires $af(n/b)\le\rho f(n)$, $\rho<1$.
+\textbf{Extended Master:} $f=\Theta(n^c\log^k n)$ (eventually positive):
+\[
+T(n)=\begin{cases}
+\Theta(n^p),&c<p,\\
+\Theta(n^c\log^k n),&c>p,\\
+\Theta(n^p\log^{k+1}n),&c=p,\ k>-1,\\
+\Theta(n^p\log\log n),&c=p,\ k=-1,\\
+\Theta(n^p),&c=p,\ k<-1.
+\end{cases}
+\]
+At $c=p$, $h=\log_b n$:
+\[
+\textstyle T=\Theta\!\left(n^p\sum_{j=1}^{h}j^k\right).
+\]
+$\sum j^{-1}=\Theta(\log h)$, $\sum j^{-2}=\Theta(1)$.
+
+\subsection{L01 exercise traps}
+\textbf{Signed recurrence:} standard Master does not apply to $f(n)=n\sin n$.
+For $n=2^h$, $T(1)=c>0$:
+\[
+\textstyle T(n)=n^2\left(c+\sum_{j=1}^h\frac{\sin(2^j)}{2^j}\right)=\Theta(n^2).
+\]
+Indeed $S_2=\sin2/2+\sin4/4\approx0.26545>1/4=\sum_{j\ge3}2^{-j}$, hence $0\le S_h\le1$.
+Negative terms can cancel: $4T(n/2)-n$, $T(1)=1$ has solution $T(n)=n$.

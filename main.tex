@@ -1,5 +1,5 @@
 \documentclass[12pt]{article}
-\usepackage[a4paper,top=1pt,bottom=2pt,left=1pt,right=1pt,marginparwidth=1pt,headheight=1pt]{geometry}
+\usepackage[a4paper,margin=3mm]{geometry}
 
 \input{preamble.tex}
 
@@ -7,22 +7,11 @@
 \usepackage{multicol}
 \usepackage{color}
 \setlength{\columnsep}{0.2cm}
-\setlength{\columnseprule}{1pt}
+\setlength{\columnseprule}{0.3pt}
 \def\columnseprulecolor{\color{blue}}
-
-\usepackage{xpatch}
-\xpatchcmd{\NCC@ignorepar}{%
-\abovedisplayskip\abovedisplayshortskip}
-{%
-\abovedisplayskip\abovedisplayshortskip%
-\belowdisplayskip\belowdisplayshortskip}
-{}{}
 
 \setlength{\parindent}{0in}
 \setlength{\parskip}{0in}
-
-\setlength{\belowdisplayskip}{0pt} \setlength{\belowdisplayshortskip}{0pt}
-\setlength{\abovedisplayskip}{0pt} \setlength{\abovedisplayshortskip}{0pt}
 
 \usepackage{soul}
 \usepackage[dvipsnames]{xcolor}
@@ -36,19 +25,25 @@
 \titlespacing*{\subsection}{0pt}{0.25ex}{0.15ex}
 
 \begin{document}
+\pagestyle{empty}
 \singlespacing
+\raggedcolumns
 
 \begin{multicols*}{4}
 
 \tiny
+% Set math spacing after \tiny, which resets the display skips.
+\setlength{\abovedisplayskip}{1pt}
+\setlength{\belowdisplayskip}{1pt}
+\setlength{\abovedisplayshortskip}{0.5pt}
+\setlength{\belowdisplayshortskip}{0.5pt}
+\setlength{\jot}{0pt}
+\setlength{\arraycolsep}{2pt}
+\renewcommand{\arraystretch}{0.95}
 
 \raggedright
 
-\section{Section1}
-
-\subsection{Subsection}
-
-\textbf{Key Words} 
+\input{lecture01.tex}
 
 \end{multicols*}
 

@@ -9,7 +9,7 @@ all: pdf
 
 pdf: $(PDF)
 
-$(PDF): $(TEX) preamble.tex
+$(PDF): $(TEX) preamble.tex $(wildcard lecture*.tex)
 	$(LATEXMK) $(LATEXMK_OPTS) $<
 
 watch:
