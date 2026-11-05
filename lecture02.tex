@@ -2,192 +2,146 @@
 % shortcut: original L02.pdf unavailable; verify slide-specific constants when supplied.
 \section{L02: Memory Hierarchy \& Cache}
 \subsection{Memory, locality \& units}
-\textbf{Latency:} time per operation; \textbf{throughput:} achieved work/time;
-\textbf{bandwidth:} maximum data/time.
-Data throughput $\le$ bandwidth; high bandwidth $\not\Rightarrow$ low latency.
-Faster memory is generally smaller and more expensive per byte.
-\textbf{Temporal:} same data soon; \textbf{spatial:} nearby data soon.
-Reuse after many intervening distinct blocks may miss.
-\textbf{CPU:} registers $\to$ L1/L2/L3 $\to$ DRAM; hardware-managed cache.
-\textbf{GPU:} per-thread registers; per-block on-chip shared memory (explicit);
-hardware L1/L2; global DRAM. Local memory is thread-private DRAM space
-(e.g. register spills), not necessarily fast/on-chip.
-Constant: broadcast reads; texture: spatial locality.
-\textbf{FPGA:} registers, LUTRAM, BRAM/URAM; explicitly designed buffers/dataflow;
-external SRAM/DRAM/Flash.
-\[
-\begin{array}{@{}c@{}}
-W(n)=\text{computational work},\\
-Q(n)=\text{cache misses},\quad \#\text{lines}=M/\mathcal B.
-\end{array}
-\]
-Cache holds \emph{many} lines; a miss transfers a whole line.
-$M$: cache capacity; $\mathcal B$: line size (distinct from matrix $B$).
-\textbf{Units:} address mapping uses bytes; matrix analysis uses elements/words.
-For $e$ bytes/element, convert both: $M=M_{\rm bytes}/e$,
-$\mathcal B=\mathcal B_{\rm bytes}/e$.
+$M$: capacity; $\mathcal B$: line size; $W$: work; $Q$: misses;
+$\#\text{lines}=M/\mathcal B$.
+Bytes for mapping, elements for matrices ($e$ bytes/element):
+$(M,\mathcal B)=(M_{\rm bytes}/e,\mathcal B_{\rm bytes}/e)$.
+\textbf{Latency:} time/op; data throughput $\le$ bandwidth;
+high bandwidth $\not\Rightarrow$ low latency.
+\textbf{Locality:} temporal = same soon; spatial = nearby soon.
+% CPU sharing varies: https://intel.github.io/optimization-zone/hardware/HWPrefetchTuning/
+\textbf{CPU:} registers $\to$ L1 $\to$ L2 $\to$ L3 cache $\to$ DRAM;
+L1/L2 are on-chip: L1 closest to each core; L2 per core or core cluster.
+L3 typically shared across cores. Hardware manages caches.\par
+% CUDA layout: https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/
+\begin{samepage}
+\textbf{GPU (CUDA):} SM = streaming multiprocessor.
+Inside each SM: registers (thread-private), shared memory
+(per thread block; managed by code), L1 cache (managed by hardware).
+L2: on-chip, outside individual SMs, shared across all SMs.
+Global memory: device DRAM accessible to all threads;
+local memory: thread-private address space backed by device DRAM.\par
+\end{samepage}
+\begin{samepage}
+\textbf{FPGA:} on-chip: registers, LUTRAM, BRAM/URAM;
+off-chip: DRAM. Designer chooses buffer layout and dataflow.\par
+\end{samepage}
 
-\subsection{Cache mapping \& address fields}
-Byte address $a$, $w$ address bits, $k$ ways;
-$M$ is data capacity (excludes tag/valid metadata).
-Assume $\mathcal B$ and set count $E$ are powers of two.
+\subsection{Cache mapping}
+Byte address $a$, $w$ bits, $k$ ways; $M$ excludes metadata;
+$\mathcal B,E$ powers of two.
 \[
 \begin{array}{@{}c@{}}
-E=\dfrac{M}{k\mathcal B},\quad
-q=\left\lfloor\dfrac a{\mathcal B}\right\rfloor,\\
-\text{offset }o=a\bmod\mathcal B,\\
-\text{set }s=q\bmod E,\\
-\text{tag }t=\lfloor q/E\rfloor=\lfloor a/(M/k)\rfloor,\\
+E=\dfrac{M}{k\mathcal B}\ \text{sets},\quad q=\lfloor a/\mathcal B\rfloor,\\
+o=a\bmod\mathcal B,\quad s=q\bmod E,\\
+t=\lfloor q/E\rfloor=\lfloor a/(M/k)\rfloor,\\
 a=[\text{tag}\mid\text{set index}\mid\text{offset}],\\
 b_o=\log_2\mathcal B,\quad b_s=\log_2E,\\
 b_t=w-b_s-b_o=w-\log_2(M/k).
 \end{array}
 \]
-\textbf{Direct mapped:} $k=1$; unique line/slot;
-$b_s=\log_2(M/\mathcal B)$, $b_t=w-\log_2M$.
-\textbf{$k$-way:} one fixed set, any of its $k$ ways.
-\textbf{Fully associative:} $k=M/\mathcal B$, $E=1$, no index bits;
-any line, $b_t=w-\log_2\mathcal B$.
-\textbf{Hit:} selected set contains a valid way with matching tag;
-offset selects byte, not hit/miss. On miss: use invalid way first,
-otherwise evict within the selected set; install block, tag, valid bit.
-\textbf{LRU:} hit or fill $\to$ MRU; evict least recently used valid line.
-\textbf{Example:} $w=16$, $M=256$ B, $\mathcal B=16$ B, $k=4$:
-$E=4$, $(b_t,b_s,b_o)=(10,2,4)$.
-$a=\texttt{0x035A}=858$: $q=53$, $(t,s,o)=(13,1,10)$.
-
-\subsection{Miss types \& common traps}
-For an actual miss, ignoring coherence:
-\textbf{(1) Cold/compulsory:} first access to this \emph{block}, not each element.
-\textbf{(2) Capacity:} previously accessed block also misses in a
-same-capacity fully associative LRU reference cache.
-\textbf{(3) Conflict:} that reference hits, actual mapped cache misses.
-Compare the \emph{same trace} and line size; reference policy here is LRU,
-not the optimal policy of the ideal-cache model.
-\textbf{Traps:} capacity misses can occur in all organizations;
-conflict misses occur in direct \emph{and} set associative caches;
-fully associative removes mapping conflicts.
-A full set/way does not by itself classify the miss; first access stays cold
-even if it evicts another block.
-\textbf{Sharing/coherence:} another core's write may invalidate a cached line.
-True sharing: same data; false sharing: different data on the same line.
-Read-only sharing alone does not cause invalidation ping-pong;
-padding/separating writable data can reduce false sharing.
-
-\subsection{Double buffering: overlap load/compute}
-$N\ge1$ equal chunks; $T_L,T_C>0$ load/compute time per chunk.
-Two disjoint buffers alternate: compute current chunk while loading next;
-wait for both before swapping/reusing buffers.
-Assume independent load/compute resources, serial order within each stage,
-and no synchronization/switching overhead (no extra output stage).
+\textbf{DM (direct):} $k=1$; \textbf{$k$-way:} any way in set $s$;
+\textbf{FA (fully assoc.):} $k=M/\mathcal B$, $E=1$, $b_s=0$.
 \[
-\begin{array}{@{}c@{}}
-T_{\rm single}=N(T_L+T_C),\\
-H=\max(T_L,T_C),\quad L=\min(T_L,T_C),\\
-T_{\rm double}=T_L+(N-1)H+T_C\\
-=NH+L,\\
-\mathrm{Speedup}_N=\dfrac{N(H+L)}{NH+L},\\
-\mathrm{Speedup}_{\infty}=1+\dfrac LH\le2.
+\text{Hit}\iff\exists j\text{ in set }s:\ v_j=1\land t_j=t.
+\]
+\textbf{LRU:} hit/fill $\to$ MRU; miss $\to$ invalid way first,
+else evict LRU within set.
+
+\subsection{Miss types}
+Actual miss; reference = same-capacity FA-LRU, same trace/$\mathcal B$;
+ignore coherence:
+\[
+\begin{array}{@{}ll@{}}
+\text{Cold}&\text{first access to block}\\
+\text{Capacity}&\text{seen; reference misses}\\
+\text{Conflict}&\text{seen; reference hits}
 \end{array}
 \]
-First load + steady-state overlap + final compute.
-$T_L>T_C$: load-bound; $T_C>T_L$: compute-bound.
-Balanced stages maximize speedup: if $T_L=T_C$,
-$\mathrm{Speedup}_N=2N/(N+1)<2$; approaches $2$ as $N\to\infty$.
-$N=1$: no overlap, speedup $1$. More buffers do not remove the slower-stage limit.
+Conflict: DM and $k$-way; FA has no mapping conflicts.
+Full set $\not\Rightarrow$ capacity miss.
+\textbf{Coherence (writes):} true sharing = same data;
+false sharing = different data, same line.
 
-\subsection{Ideal cache \& caching lemmas}
-\textbf{Ideal:} fully associative, optimal replacement (future knowledge).
-\textbf{LRU lemma:} same access trace, line size and initially empty caches:
-\[
-Q_{\rm LRU}(2M)\le2Q_{\rm Ideal}(M).
-\]
-LRU has \emph{twice} the capacity; not a same-capacity bound, not equality.
-\textbf{Cache-Miss Lemma:} access only $r$ contiguous segments of lengths $S_i$
-(segments need not be adjacent), $N=\sum_iS_i$; fully associative cache.
-\[
-\begin{array}{@{}c@{}}
-N<M/3,\quad N/r\ge\mathcal B\\
-\Longrightarrow\quad
-Q\le N/\mathcal B+2r\le3N/\mathcal B.
-\end{array}
-\]
-Row/segment boundary overhead gives $+2r$; all touched lines fit,
-so repeated accesses hit under LRU/ideal. Bound $\ne$ exact count.
-\textbf{Tall cache:} $\mathcal B^2<cM$ for a suitably small constant $c>0$;
-asymptotically $M=\Omega(\mathcal B^2)$.
-\textbf{Submatrix Caching Lemma:} row-major $n\times n$ submatrix;
-each row is a contiguous segment ($N=n^2$, $r=n$):
-\[
-\begin{array}{@{}c@{}}
-\mathcal B^2<cM\le n^2<M/3\\
-\Longrightarrow\quad Q\le3n^2/\mathcal B.
-\end{array}
-\]
-Lower condition ensures $n>\mathcal B$ (long rows);
-upper condition reserves room for row-edge lines.
-These are sufficient conditions; smaller submatrices can also cache efficiently.
-
-\subsection{Naive matrix multiplication: three regimes}
-\textbf{Assumptions:} row-major $A,B,C$; loops $i\to j\to k$;
-fully associative LRU, tall cache, cold start; $M,\mathcal B$ in elements.
-\[
-C_{ij}\mathrel{+}=A_{ik}B_{kj},\qquad W(n)=\Theta(n^3).
-\]
-Inner $k$: $A$ contiguous, $B$ stride $n$, $C_{ij}$ reused.
-For $n\ge\mathcal B$, one $B$ column touches $n$ distinct lines;
-holding these lines needs about $n\mathcal B$ elements, not $n$.
-\[
-\begin{array}{@{}l@{\quad}l@{}}
-\text{Size condition}&Q(n)\\\hline
-n>c_1M/\mathcal B&\Theta(n^3)\\
-c_2\sqrt M<n<c_3M/\mathcal B&\Theta(n^3/\mathcal B)\\
-n<c_4\sqrt M&\Theta(n^2/\mathcal B)
-\end{array}
-\]
-$c_i$ are suitable constants, separately for each regime;
-the two threshold \emph{scales} are $\sqrt M$ and $M/\mathcal B$,
-not exact numerical cutoffs (transition bands omitted).
-Cold-cache expressions above assume $n^2\ge\mathcal B$;
-for tiny matrices use $\Theta(1+n^2/\mathcal B)$ in the fitting case.
-\textbf{Large:} $n$ current $B$ lines do not fit; little reuse between columns;
-fixed $i$: $\Theta(n^2)$ misses, then $n$ values of $i$.
-\textbf{Middle:} these $n$ lines fit, entire $B$ does not.
-Each group of $\mathcal B$ adjacent columns loads $n$ lines;
-fixed $i$: $(n/\mathcal B)n=n^2/\mathcal B$; multiply by $n$ outer iterations.
-\textbf{Small:} all three matrices fit; load each line once, reuse across all $i$.
-Ignoring row-edge overhead, $3n^2\le M$ is the simple capacity check.
-For $n=16$, $\mathcal B=4$, cold $B$ alone needs $256/4=64$ lines,
-not $256$; no further factor $n$ if it remains cached.
-
-\subsection{Blocking / tiling: short derivation}
-\emph{Supplementary derivation from the lecture's blocking idea.}
-$S\times S$ tiles, $\mathcal B\le S\le n$; assume $S\mid n$ for counts,
-fully associative cache, and all three actual tile line footprints fit.
-Tile rows are contiguous; row-edge overhead is $O(S)$ lines.
+\subsection{Blocking / tiling}
+\emph{Supplementary derivation.}
+$S\times S$ tiles; FA; $\mathcal B\le S\le n$, $S\mid n$;
+three tile line footprints fit.
+Keep $C_{IJ}$ resident across inner $K$: $C_{IJ}\mathrel{+}=A_{IK}B_{KJ}$.
 \[
 \begin{array}{@{}c@{}}
 W_{\rm tile}=\Theta(S^3),\quad D_{\rm tile}=\Theta(S^2),\\
 Q_{\rm tile}=O(S^2/\mathcal B+S)=O(S^2/\mathcal B),\\
 \#\text{tile products}=(n/S)^3,\\
-Q_{A+B}=O\!\left((n/S)^3S^2/\mathcal B\right)\\
-=O(n^3/(\mathcal BS)).
-\end{array}
-\]
-\textbf{Keep $C$ resident:} outer tile indices $I,J$, inner $K$;
-$C_{IJ}\mathrel{+}=A_{IK}B_{KJ}$ for every $K$ before releasing $C_{IJ}$.
-\[
-\begin{array}{@{}c@{}}
-Q_C=O\!\left((n/S)^2S^2/\mathcal B\right)=O(n^2/\mathcal B),\\
+Q_{A+B}=O(n^3/(\mathcal BS)),\quad Q_C=O(n^2/\mathcal B),\\
 Q_{\rm blocked}=O\!\left(\dfrac{n^3}{\mathcal BS}+\dfrac{n^2}{\mathcal B}\right).
 \end{array}
 \]
-Ignoring row-edge overhead: $3S^2\le M$.
-For large matrices, choose $S=\Theta(\sqrt M)$ with a small enough constant
-to leave line-boundary headroom; tall cache ensures $S\ge\mathcal B$.
+$3S^2\lesssim M$; large $n$: choose $S=\Theta(\sqrt M)$
+with line-boundary headroom (tall cache).
 \[
 Q_{\rm blocked}=O\!\left(\dfrac{n^3}{\mathcal B\sqrt M}+\dfrac{n^2}{\mathcal B}\right).
 \]
-Work stays $\Theta(n^3)$; reuse per loaded tile grows as $\Theta(S)$.
-Too-large tiles evict useful lines; strided access alone does not force a miss
-if the needed line is still cached. Write-back adds only a constant factor here.
+$W(n)=\Theta(n^3)$ unchanged; work/data $=\Theta(S)$.
+
+\subsection{Double buffering}
+$N\ge1$ equal chunks; $T_L,T_C>0$: load/compute per chunk.
+Two buffers; load $\parallel$ compute; ignore sync/switch/output costs.
+\[
+\begin{array}{@{}c@{}}
+H=\max(T_L,T_C),\quad L=\min(T_L,T_C),\\
+T_{\rm single}=N(T_L+T_C),\\
+T_{\rm double}=T_L+(N-1)H+T_C\\
+=NH+L,\\
+\mathrm{SU}_N=\dfrac{N(H+L)}{NH+L},\\
+\mathrm{SU}_{\infty}=1+\dfrac LH\le2,\\
+T_L=T_C\Rightarrow\mathrm{SU}_N=\dfrac{2N}{N+1}<2.
+\end{array}
+\]
+$N=1$: $\mathrm{SU}=1$;
+$T_L>T_C$: load-bound; $T_C>T_L$: compute-bound.
+
+\subsection{Ideal cache \& lemmas}
+FA; \textbf{Ideal} = optimal replacement.
+LRU comparison: same trace/$\mathcal B$, cold caches.
+\[
+Q_{\rm LRU}(2M)\le2Q_{\rm Ideal}(M).
+\]
+\textbf{Cache-Miss:} access only $r$ contiguous segments;
+$N=\sum_iS_i$; FA LRU/ideal.
+\[
+\begin{array}{@{}c@{}}
+N<M/3,\quad N/r\ge\mathcal B\\
+\Longrightarrow Q\le N/\mathcal B+2r\le3N/\mathcal B.
+\end{array}
+\]
+\textbf{Tall cache:} $\mathcal B^2<cM$ ($c>0$ suitably small);
+$M=\Omega(\mathcal B^2)$.
+\textbf{Submatrix:} row-major $n\times n$ ($N=n^2,r=n$):
+\[
+\mathcal B^2<cM\le n^2<M/3
+\ \Longrightarrow\ Q\le3n^2/\mathcal B.
+\]
+Sufficient conditions; upper bounds $\ne$ exact counts.
+
+\subsection{Naive matrix multiplication}
+Row-major, $i\to j\to k$; FA-LRU, tall cache, cold start;
+$M,\mathcal B$ in elements.
+\[
+C_{ij}\mathrel{+}=A_{ik}B_{kj},\qquad W(n)=\Theta(n^3).
+\]
+$k$-loop: $A$ contiguous; $B$ stride $n$; $C_{ij}$ reused.
+\[
+\begin{array}{@{}l@{\quad}l@{}}
+\text{Size condition}&Q(n)\\\hline
+n>c_1M/\mathcal B&\Theta(n^3)\\
+c_2\sqrt M<n<c_3M/\mathcal B&\Theta(n^3/\mathcal B)\\
+n<c_4\sqrt M&\Theta(1+n^2/\mathcal B)
+\end{array}
+\]
+$c_i$: suitable constants; transition bands omitted.
+\textbf{Fit scales:} $n\mathcal B\lesssim M$: one $B$ line/row;
+$3n^2\lesssim M$: all $A,B,C$ (line overhead omitted).
+Middle: reuse across $\mathcal B$ adjacent columns; small: across all $i$.
+
+
